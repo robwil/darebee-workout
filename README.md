@@ -15,6 +15,11 @@ In order to address this frustration, I built a quick tool that will perform the
 4) Fetch those video pages, scraping for Youtube embed.
 5) Outputting the workout graphic, followed by any found Youtube embeds from steps 3-4.
 
+## Requirements
+
+You will need a Google Cloud account. The application expects the JSON for a valid Service Account to be dropped in the root
+of this directory, with the filename `.gcloud_darebee.json`
+
 ## Deployment
 
 ```

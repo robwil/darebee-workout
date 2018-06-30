@@ -143,7 +143,8 @@ func PrintVideos(ctx *routing.Context) error {
 func main() {
     router := routing.New()
     router.Get("/<workout>/<day>", PrintVideos)
-    if err := fasthttp.ListenAndServe("127.0.0.1:5000", router.HandleRequest); err != nil {
+    log.Printf("Listening on port 5000")
+    if err := fasthttp.ListenAndServe("0.0.0.0:5000", router.HandleRequest); err != nil {
         log.Fatalf("error in ListenAndServe: %s", err)
     }
 }

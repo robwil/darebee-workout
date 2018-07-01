@@ -209,8 +209,8 @@ func main() {
 	router := routing.New()
 	router.Get("/<workout>/<day>", printVideos(mem))
 
-	log.Printf("Listening on port 5000. Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
-	if err := fasthttp.ListenAndServe("0.0.0.0:5000", router.HandleRequest); err != nil {
+	log.Printf("Listening on port 80. Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
+	if err := fasthttp.ListenAndServe("0.0.0.0:80", router.HandleRequest); err != nil {
 		log.Fatalf("error in ListenAndServe: %s", err)
 	}
 }

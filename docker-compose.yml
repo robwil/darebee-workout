@@ -3,7 +3,7 @@ services:
   app:
     build: .
     ports:
-      - "5000:5000"
+      - "80:80"
     environment:
       - MEMCACHED_HOST=cache
       - MEMCACHED_PORT=3000

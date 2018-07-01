@@ -43,7 +43,7 @@ var exceptions = map[string]string{
 func getVideoName(line string) string {
 	line = strings.ToLower(line)
 	// extract names only when prefaced with exercise count
-	r := regexp.MustCompile("^(\\d+)\\s+(.+)")
+	r := regexp.MustCompile(`^(\d+)\s+(.+)`)
 	matches := r.FindStringSubmatch(line)
 	if len(matches) >= 3 {
 		// handle "between sets" instruction; not an exercise so skip it
@@ -51,7 +51,7 @@ func getVideoName(line string) string {
 			return ""
 		}
 		// replace non-word chars with hyphen
-		r = regexp.MustCompile("[^\\w]")
+		r = regexp.MustCompile(`[^\w]`)
 		str := r.ReplaceAllString(matches[2], "-")
 		// convert any multi hyphen to hyphen (making less sensitive to Google Vision mistakes)
 		r = regexp.MustCompile("-+")
@@ -92,7 +92,7 @@ func getYoutubeEmbed(videoURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	r := regexp.MustCompile("youtube\\.com/embed/([^?]+)\\?")
+	r := regexp.MustCompile(`youtube\.com/embed/([^?]+)\?`)
 	matches := r.FindStringSubmatch(string(body))
 	if len(matches) >= 2 {
 		return matches[1], nil
@@ -150,7 +150,6 @@ func saveExercisesForImageToCache(mem *mc.Client, imageURL string, exercises []e
 }
 
 func printVideos(mem *mc.Client) func(*routing.Context) error {
-	// TODO: handle err from fmt.Fprintf calls
 	return func(ctx *routing.Context) error {
 		log.Printf("GET %s", ctx.RequestURI())
 		workout := ctx.Param("workout")

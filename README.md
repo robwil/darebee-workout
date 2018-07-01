@@ -31,8 +31,8 @@ $ docker-compose up
 ```
 $ go test
 $ docker build -t darebee .
-$ docker tag darebee gcr.io/darebee-208813/darebee-workout:1.0
-$ docker push gcr.io/darebee-208813/darebee-workout:1.0
+$ docker tag darebee gcr.io/darebee-208813/darebee-workout:1.1
+$ docker push gcr.io/darebee-208813/darebee-workout:1.1
 ```
 
 Then refresh GCE instance from Google cloud console.

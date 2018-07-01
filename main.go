@@ -101,8 +101,8 @@ func getYoutubeEmbed(videoURL string) (string, error) {
 }
 
 type exercise struct {
-	name     string
-	embedURL string
+	Name     string
+	EmbedURL string
 }
 
 func getExercisesFromCache(mem *mc.Client, imageURL string) ([]exercise, error) {
@@ -134,7 +134,7 @@ func getExercisesForImage(imageURL string) ([]exercise, error) {
 		if err != nil {
 			return nil, err
 		}
-		exercises = append(exercises, exercise{name: line, embedURL: embedURL})
+		exercises = append(exercises, exercise{Name: line, EmbedURL: embedURL})
 	}
 	return exercises, nil
 }
@@ -166,6 +166,7 @@ func printVideos(mem *mc.Client) func(*routing.Context) error {
 		}
 		// Then fall back to calculating exercises from Google Vision API + HTTP GETs
 		if exercises == nil {
+			log.Printf("Cache miss, calculating: %s", ctx.RequestURI())
 			exercises, err = getExercisesForImage(imageURL)
 			if err != nil {
 				return err
@@ -177,17 +178,17 @@ func printVideos(mem *mc.Client) func(*routing.Context) error {
 			}
 		}
 		for _, exercise := range exercises {
-			if exercise.embedURL != "" {
+			if exercise.EmbedURL != "" {
 				fmt.Fprintf(ctx, `
                     <h2>%s</h2>
                     <p>
                         <iframe width="845" height="480" src="//www.youtube.com/embed/%s?rel=0&showinfo=0" frameborder="0" allowfullscreen></iframe>
-                    </p>`, exercise.name, exercise.embedURL)
+                    </p>`, exercise.Name, exercise.EmbedURL)
 			} else {
 				fmt.Fprintf(ctx, `
                     <h2>%s</h2>
                     <p>Video not found</p>
-                `, exercise.name)
+                `, exercise.Name)
 			}
 		}
 		ctx.Response.Header.Set("Content-Type", "text/html")

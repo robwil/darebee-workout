@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/vision/apiv1"
-	"github.com/bmizerany/mc"
+	"github.com/memcachier/mc"
 	"github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
@@ -20,13 +20,13 @@ import (
 // TODO: eventually make this interactive with https://github.com/kataras/iris/#learn
 // TODO: I can probably make a simple <Select> box of workouts, which map to their workout names
 
-func detectText(imageUrl string) (string, error) {
+func detectText(imageURL string) (string, error) {
 	ctx := context.Background()
 	client, err := vision.NewImageAnnotatorClient(ctx)
 	if err != nil {
 		return "", err
 	}
-	image := vision.NewImageFromURI(imageUrl)
+	image := vision.NewImageFromURI(imageURL)
 	annotations, err := client.DetectDocumentText(ctx, image, nil)
 	if err != nil {
 		return "", err
@@ -68,7 +68,7 @@ func getVideoName(line string) string {
 	return ""
 }
 
-func getImageUrl(workout string, day string) (string, error) {
+func getImageURL(workout string, day string) (string, error) {
 	workout = strings.ToLower(workout)
 	dayNum, err := strconv.Atoi(day)
 	if err != nil {
@@ -77,12 +77,12 @@ func getImageUrl(workout string, day string) (string, error) {
 	return fmt.Sprintf("https://darebee.com/images/programs/%s/web/day%02d.jpg", workout, dayNum), nil
 }
 
-func getVideoUrl(name string) string {
+func getVideoURL(name string) string {
 	return fmt.Sprintf("https://darebee.com/exercises/%s.html", name)
 }
 
-func getYoutubeEmbed(videoUrl string) (string, error) {
-	resp, err := http.Get(videoUrl)
+func getYoutubeEmbed(videoURL string) (string, error) {
+	resp, err := http.Get(videoURL)
 	if err != nil {
 		return "", err
 	}
@@ -99,55 +99,55 @@ func getYoutubeEmbed(videoUrl string) (string, error) {
 	return "", nil
 }
 
-type Exercise struct {
+type exercise struct {
 	name     string
-	embedUrl string
+	embedURL string
 }
 
-func GetExercisesForImage(imageUrl string) ([]Exercise, error) {
-	text, err := detectText(imageUrl)
+func getExercisesForImage(imageURL string) ([]exercise, error) {
+	text, err := detectText(imageURL)
 	if err != nil {
 		return nil, err
 	}
-	var exercises []Exercise
+	var exercises []exercise
 	lines := strings.Split(text, "\n")
 	for _, line := range lines {
 		videoName := getVideoName(line)
 		if videoName == "" {
 			continue
 		}
-		url := getVideoUrl(videoName)
-		embedUrl, err := getYoutubeEmbed(url)
+		URL := getVideoURL(videoName)
+		embedURL, err := getYoutubeEmbed(URL)
 		if err != nil {
 			return nil, err
 		}
-		exercises = append(exercises, Exercise{name: line, embedUrl: embedUrl})
+		exercises = append(exercises, exercise{name: line, embedURL: embedURL})
 	}
 	return exercises, nil
 }
 
-func PrintVideos(cn *mc.Conn) func(*routing.Context) error {
+func printVideos(cn *mc.Client) func(*routing.Context) error {
 	// TODO: handle err from fmt.Fprintf calls
 	return func(ctx *routing.Context) error {
 		log.Printf("GET %s", ctx.RequestURI())
 		workout := ctx.Param("workout")
 		day := ctx.Param("day")
-		imageUrl, err := getImageUrl(workout, day)
+		imageURL, err := getImageURL(workout, day)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(ctx, `<img src="%s" /><br/>`, imageUrl)
-		exercises, err := GetExercisesForImage(imageUrl)
+		fmt.Fprintf(ctx, `<img src="%s" /><br/>`, imageURL)
+		exercises, err := getExercisesForImage(imageURL)
 		if err != nil {
 			return err
 		}
 		for _, exercise := range exercises {
-			if exercise.embedUrl != "" {
+			if exercise.embedURL != "" {
 				fmt.Fprintf(ctx, `
                     <h2>%s</h2>
                     <p>
                         <iframe width="845" height="480" src="//www.youtube.com/embed/%s?rel=0&showinfo=0" frameborder="0" allowfullscreen></iframe>
-                    </p>`, exercise.name, exercise.embedUrl)
+                    </p>`, exercise.name, exercise.embedURL)
 			} else {
 				fmt.Fprintf(ctx, `
                     <h2>%s</h2>
@@ -166,19 +166,12 @@ func main() {
 	memcachedPort := os.Getenv("MEMCACHED_PORT")
 	memcachedUser := os.Getenv("MEMCACHED_USER")
 	memcachedPass := os.Getenv("MEMCACHED_PASS")
-	cn, err := mc.Dial("tcp", fmt.Sprintf("%s:%s", memcachedHost, memcachedPort))
-	if err != nil {
-		log.Fatalf("could not connect to memcached %s:%s : %v", memcachedHost, memcachedPort, err)
-	}
-	if memcachedUser != "" {
-		if err = cn.Auth(memcachedUser, memcachedPass); err != nil {
-			log.Fatalf("could not auth to memcached with user %s: %v", memcachedUser, err)
-		}
-	}
+	mem := mc.NewMC(fmt.Sprintf("%s:%s", memcachedHost, memcachedPort), memcachedUser, memcachedPass)
+	defer mem.Quit()
 
 	// Setup http routes
 	router := routing.New()
-	router.Get("/<workout>/<day>", PrintVideos(cn))
+	router.Get("/<workout>/<day>", printVideos(mem))
 
 	log.Printf("Listening on port 5000")
 	if err := fasthttp.ListenAndServe("0.0.0.0:5000", router.HandleRequest); err != nil {

@@ -62,6 +62,12 @@
   version = "v1.1"
 
 [[projects]]
+  name = "github.com/memcachier/mc"
+  packages = ["."]
+  revision = "7a980f13f9ad192915ff50a47c6beed88e46d79f"
+  version = "v2.0.0"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -252,6 +258,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "269b8fad7c63ef5c5abddaa2ca988482c16ea3b8dce79e317b7b96938bf514bb"
+  inputs-digest = "6677a374241680efaa5416247967e6610f041749e74dd45003a78bd19746a2a7"
   solver-name = "gps-cdcl"
   solver-version = 1

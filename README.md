@@ -20,6 +20,12 @@ In order to address this frustration, I built a quick tool that will perform the
 You will need a Google Cloud account. The application expects the JSON for a valid Service Account to be dropped in the root
 of this directory, with the filename `.gcloud_darebee.json`
 
+## Running locally
+
+```
+$ docker-compose up
+```
+
 ## Deployment
 
 ```

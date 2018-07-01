@@ -15,6 +15,7 @@ import (
 	"github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
+	"encoding/json"
 )
 
 // TODO: eventually make this interactive with https://github.com/kataras/iris/#learn
@@ -104,6 +105,18 @@ type exercise struct {
 	embedURL string
 }
 
+func getExercisesFromCache(mem *mc.Client, imageURL string) ([]exercise, error) {
+	val, _, _, err := mem.Get(imageURL)
+	if err != nil {
+		return nil, err
+	}
+	var exercises []exercise
+	if err := json.Unmarshal([]byte(val), &exercises); err != nil {
+		return nil, err
+	}
+	return exercises, nil
+}
+
 func getExercisesForImage(imageURL string) ([]exercise, error) {
 	text, err := detectText(imageURL)
 	if err != nil {
@@ -126,7 +139,17 @@ func getExercisesForImage(imageURL string) ([]exercise, error) {
 	return exercises, nil
 }
 
-func printVideos(cn *mc.Client) func(*routing.Context) error {
+func saveExercisesForImageToCache(mem *mc.Client, imageURL string, exercises []exercise) error {
+	val, err := json.Marshal(exercises)
+	if err != nil {
+		return err
+	}
+	expiration := uint32(3600 * 24 * 7) // 7 days
+	_, err = mem.Set(imageURL, string(val), 0, expiration, 0)
+	return err
+}
+
+func printVideos(mem *mc.Client) func(*routing.Context) error {
 	// TODO: handle err from fmt.Fprintf calls
 	return func(ctx *routing.Context) error {
 		log.Printf("GET %s", ctx.RequestURI())
@@ -137,9 +160,22 @@ func printVideos(cn *mc.Client) func(*routing.Context) error {
 			return err
 		}
 		fmt.Fprintf(ctx, `<img src="%s" /><br/>`, imageURL)
-		exercises, err := getExercisesForImage(imageURL)
-		if err != nil {
-			return err
+		// First try to get exercise from cache
+		exercises, err := getExercisesFromCache(mem, imageURL)
+		if err != nil && err != mc.ErrNotFound {
+			log.Printf("Encountered error when fetching from cache: %v", err)
+		}
+		// Then fall back to calculating exercises from Google Vision API + HTTP GETs
+		if exercises == nil {
+			exercises, err = getExercisesForImage(imageURL)
+			if err != nil {
+				return err
+			}
+			// Put in cache for next time
+			err := saveExercisesForImageToCache(mem, imageURL, exercises)
+			if err != nil {
+				log.Printf("Failed saving exercises for %s to cache: %v", imageURL, err)
+			}
 		}
 		for _, exercise := range exercises {
 			if exercise.embedURL != "" {
@@ -173,7 +209,7 @@ func main() {
 	router := routing.New()
 	router.Get("/<workout>/<day>", printVideos(mem))
 
-	log.Printf("Listening on port 5000")
+	log.Printf("Listening on port 5000. Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
 	if err := fasthttp.ListenAndServe("0.0.0.0:5000", router.HandleRequest); err != nil {
 		log.Fatalf("error in ListenAndServe: %s", err)
 	}

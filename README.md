@@ -35,4 +35,4 @@ $ docker tag darebee gcr.io/darebee-208813/darebee-workout:1.3
 $ docker push gcr.io/darebee-208813/darebee-workout:1.3
 ```
 
-Then refresh GCE instance from Google cloud console.
+Then refresh GCE instance from the Google Cloud Console.

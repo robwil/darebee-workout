@@ -1,3 +1,6 @@
 function.zip
 main
 .gcloud_darebee.json
+
+# don't want dep modules in version control
+vendor/

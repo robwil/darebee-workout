@@ -9,13 +9,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
 	"cloud.google.com/go/vision/apiv1"
 	"github.com/memcachier/mc"
-	"github.com/qiangxue/fasthttp-routing"
-	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
 	"encoding/json"
+	"flag"
+	"net/url"
+	"github.com/robwil/darebee-workout/nodego"
 )
 
 // TODO: eventually make this interactive with https://github.com/kataras/iris/#learn
@@ -149,16 +149,43 @@ func saveExercisesForImageToCache(mem *mc.Client, imageURL string, exercises []e
 	return err
 }
 
-func printVideos(mem *mc.Client) func(*routing.Context) error {
-	return func(ctx *routing.Context) error {
-		log.Printf("GET %s", ctx.RequestURI())
-		workout := ctx.Param("workout")
-		day := ctx.Param("day")
+func parseQueryParam(q url.Values, name string) (string, error) {
+	raw := q[name]
+	if raw == nil {
+		return "", fmt.Errorf("param %s not found", name)
+	}
+	if len(raw) != 1 {
+		return "", fmt.Errorf("expected exactly 1 value for param %s, but got %d", name, len(raw))
+	}
+	return raw[0], nil
+}
+
+func printVideos(mem *mc.Client) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("GET %s", r.RequestURI)
+
+		// Parse query params
+		q := r.URL.Query()
+		workout, err := parseQueryParam(q, "workout")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		day, err := parseQueryParam(q, "day")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		// Construct image URL from query params
 		imageURL, err := getImageURL(workout, day)
 		if err != nil {
-			return err
+			http.Error(w, err.Error(), 500)
+			return
 		}
-		fmt.Fprintf(ctx, `<img src="%s" /><br/>`, imageURL)
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<img src="%s" /><br/>`, imageURL)
+
 		// First try to get exercise from cache
 		exercises, err := getExercisesFromCache(mem, imageURL)
 		if err != nil && err != mc.ErrNotFound {
@@ -166,10 +193,11 @@ func printVideos(mem *mc.Client) func(*routing.Context) error {
 		}
 		// Then fall back to calculating exercises from Google Vision API + HTTP GETs
 		if exercises == nil {
-			log.Printf("Cache miss, calculating: %s", ctx.RequestURI())
+			log.Printf("Cache miss, calculating: %s", r.RequestURI)
 			exercises, err = getExercisesForImage(imageURL)
 			if err != nil {
-				return err
+				http.Error(w, err.Error(), 500)
+				return
 			}
 			// Put in cache for next time
 			err := saveExercisesForImageToCache(mem, imageURL, exercises)
@@ -179,24 +207,28 @@ func printVideos(mem *mc.Client) func(*routing.Context) error {
 		}
 		for _, exercise := range exercises {
 			if exercise.EmbedURL != "" {
-				fmt.Fprintf(ctx, `
-                    <h2>%s</h2>
-                    <p>
-                        <iframe width="845" height="480" src="//www.youtube.com/embed/%s?rel=0&showinfo=0" frameborder="0" allowfullscreen></iframe>
-                    </p>`, exercise.Name, exercise.EmbedURL)
+				fmt.Fprintf(w, `
+                   <h2>%s</h2>
+                   <p>
+                       <iframe width="845" height="480" src="//www.youtube.com/embed/%s?rel=0&showinfo=0" frameborder="0" allowfullscreen></iframe>
+                   </p>`, exercise.Name, exercise.EmbedURL)
 			} else {
-				fmt.Fprintf(ctx, `
-                    <h2>%s</h2>
-                    <p>Video not found</p>
-                `, exercise.Name)
+				fmt.Fprintf(w, `
+                   <h2>%s</h2>
+                   <p>Video not found</p>
+               `, exercise.Name)
 			}
 		}
-		ctx.Response.Header.Set("Content-Type", "text/html")
-		return nil
 	}
 }
 
+func init() {
+	nodego.OverrideLogger()
+}
+
 func main() {
+	flag.Parse()
+
 	// Setup memcached connection
 	memcachedHost := os.Getenv("MEMCACHED_HOST")
 	memcachedPort := os.Getenv("MEMCACHED_PORT")
@@ -204,13 +236,9 @@ func main() {
 	memcachedPass := os.Getenv("MEMCACHED_PASS")
 	mem := mc.NewMC(fmt.Sprintf("%s:%s", memcachedHost, memcachedPort), memcachedUser, memcachedPass)
 	defer mem.Quit()
+	log.Printf("Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
 
-	// Setup http routes
-	router := routing.New()
-	router.Get("/<workout>/<day>", printVideos(mem))
+	http.HandleFunc(nodego.HTTPTrigger, printVideos(mem))
 
-	log.Printf("Listening on port 80. Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
-	if err := fasthttp.ListenAndServe("0.0.0.0:80", router.HandleRequest); err != nil {
-		log.Fatalf("error in ListenAndServe: %s", err)
-	}
+	nodego.TakeOver()
 }

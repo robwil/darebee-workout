@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"cloud.google.com/go/vision/apiv1"
-	"github.com/memcachier/mc"
 	"golang.org/x/net/context"
-	"encoding/json"
 	"flag"
 	"net/url"
 	"github.com/robwil/darebee-workout/nodego"
+	"cloud.google.com/go/firestore"
+	"net/http"
+	"errors"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
-// TODO: eventually make this interactive with https://github.com/kataras/iris/#learn
-// TODO: I can probably make a simple <Select> box of workouts, which map to their workout names
+const firestoreCollection = "cache"
+const firestoreKey = "exercises"
+var docNotFoundError = errors.New("document not found")
 
 func detectText(imageURL string) (string, error) {
 	ctx := context.Background()
@@ -105,16 +107,27 @@ type exercise struct {
 	EmbedURL string
 }
 
-func getExercisesFromCache(mem *mc.Client, imageURL string) ([]exercise, error) {
-	val, _, _, err := mem.Get(imageURL)
-	if err != nil {
+type firestoreDoc struct {
+	Exercises []exercise `firestore:"exercises,omitempty"`
+}
+
+func getFirestoreName(original string) string {
+	return strings.NewReplacer("/", "_", ":", "_").Replace(original)
+}
+
+func getExercisesFromCache(ctx context.Context, client *firestore.Client, imageURL string) ([]exercise, error) {
+	rawDoc, err := client.Collection(firestoreCollection).Doc(getFirestoreName(imageURL)).Get(ctx)
+	if err != nil && grpc.Code(err) != codes.NotFound {
 		return nil, err
 	}
-	var exercises []exercise
-	if err := json.Unmarshal([]byte(val), &exercises); err != nil {
+	if !rawDoc.Exists() {
+		return nil, docNotFoundError
+	}
+	doc := &firestoreDoc{}
+	if err = rawDoc.DataTo(doc); err != nil {
 		return nil, err
 	}
-	return exercises, nil
+	return doc.Exercises, nil
 }
 
 func getExercisesForImage(imageURL string) ([]exercise, error) {
@@ -139,14 +152,13 @@ func getExercisesForImage(imageURL string) ([]exercise, error) {
 	return exercises, nil
 }
 
-func saveExercisesForImageToCache(mem *mc.Client, imageURL string, exercises []exercise) error {
-	val, err := json.Marshal(exercises)
-	if err != nil {
+func saveExercisesForImageToCache(ctx context.Context, client *firestore.Client, imageURL string, exercises []exercise) error {
+	docName := getFirestoreName(imageURL)
+	doc := &firestoreDoc{Exercises: exercises}
+	if _, err := client.Collection(firestoreCollection).Doc(docName).Set(ctx, doc); err != nil {
 		return err
 	}
-	expiration := uint32(3600 * 24 * 7) // 7 days
-	_, err = mem.Set(imageURL, string(val), 0, expiration, 0)
-	return err
+	return nil
 }
 
 func parseQueryParam(q url.Values, name string) (string, error) {
@@ -160,7 +172,7 @@ func parseQueryParam(q url.Values, name string) (string, error) {
 	return raw[0], nil
 }
 
-func printVideos(mem *mc.Client) func(w http.ResponseWriter, r *http.Request) {
+func printVideos(ctx context.Context, client *firestore.Client) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("GET %s", r.RequestURI)
 
@@ -187,8 +199,8 @@ func printVideos(mem *mc.Client) func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `<img src="%s" /><br/>`, imageURL)
 
 		// First try to get exercise from cache
-		exercises, err := getExercisesFromCache(mem, imageURL)
-		if err != nil && err != mc.ErrNotFound {
+		exercises, err := getExercisesFromCache(ctx, client, imageURL)
+		if err != nil && err != docNotFoundError {
 			log.Printf("Encountered error when fetching from cache: %v", err)
 		}
 		// Then fall back to calculating exercises from Google Vision API + HTTP GETs
@@ -200,7 +212,7 @@ func printVideos(mem *mc.Client) func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Put in cache for next time
-			err := saveExercisesForImageToCache(mem, imageURL, exercises)
+			err := saveExercisesForImageToCache(ctx, client, imageURL, exercises)
 			if err != nil {
 				log.Printf("Failed saving exercises for %s to cache: %v", imageURL, err)
 			}
@@ -229,16 +241,15 @@ func init() {
 func main() {
 	flag.Parse()
 
-	// Setup memcached connection
-	memcachedHost := os.Getenv("MEMCACHED_HOST")
-	memcachedPort := os.Getenv("MEMCACHED_PORT")
-	memcachedUser := os.Getenv("MEMCACHED_USER")
-	memcachedPass := os.Getenv("MEMCACHED_PASS")
-	mem := mc.NewMC(fmt.Sprintf("%s:%s", memcachedHost, memcachedPort), memcachedUser, memcachedPass)
-	defer mem.Quit()
-	log.Printf("Using memcached host %s@%s:%s", memcachedUser, memcachedHost, memcachedPort)
+	// setup Firestore connection
+	ctx := context.Background()
+	client, err := firestore.NewClient(ctx, "darebee-208813")
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+	defer client.Close()
 
-	http.HandleFunc(nodego.HTTPTrigger, printVideos(mem))
+	http.HandleFunc(nodego.HTTPTrigger, printVideos(ctx, client))
 
 	nodego.TakeOver()
 }

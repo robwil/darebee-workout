@@ -5,6 +5,11 @@
   name = "cloud.google.com/go"
   packages = [
     "compute/metadata",
+    "firestore",
+    "firestore/apiv1beta1",
+    "internal/atomiccache",
+    "internal/btree",
+    "internal/fields",
     "internal/version",
     "longrunning",
     "longrunning/autogen",
@@ -22,6 +27,7 @@
     "ptypes/any",
     "ptypes/duration",
     "ptypes/empty",
+    "ptypes/struct",
     "ptypes/timestamp",
     "ptypes/wrappers"
   ]
@@ -43,12 +49,6 @@
   name = "github.com/googleapis/gax-go"
   packages = ["."]
   revision = "317e0006254c44a0ac427cc52a0e083ff0b9622f"
-  version = "v2.0.0"
-
-[[projects]]
-  name = "github.com/memcachier/mc"
-  packages = ["."]
-  revision = "7a980f13f9ad192915ff50a47c6beed88e46d79f"
   version = "v2.0.0"
 
 [[projects]]
@@ -165,6 +165,7 @@
   packages = [
     "googleapis/api/annotations",
     "googleapis/cloud/vision/v1",
+    "googleapis/firestore/v1beta1",
     "googleapis/longrunning",
     "googleapis/rpc/status",
     "googleapis/type/color",
@@ -220,6 +221,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "90afc294c1ad2bf257b5d220c47ab6b819d0667bbbb55f7f0721b9538971eb74"
+  inputs-digest = "56463c515df0861a4d3613b1c36c5b3e72e70aec0e9a3aad94b12955dde5c57c"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -5,6 +5,11 @@
   name = "cloud.google.com/go"
   packages = [
     "compute/metadata",
+    "firestore",
+    "firestore/apiv1beta1",
+    "internal/atomiccache",
+    "internal/btree",
+    "internal/fields",
     "internal/version",
     "longrunning",
     "longrunning/autogen",
@@ -22,6 +27,7 @@
     "ptypes/any",
     "ptypes/duration",
     "ptypes/empty",
+    "ptypes/struct",
     "ptypes/timestamp",
     "ptypes/wrappers"
   ]
@@ -46,54 +52,10 @@
   version = "v2.0.0"
 
 [[projects]]
-  name = "github.com/klauspost/compress"
-  packages = [
-    "flate",
-    "gzip",
-    "zlib"
-  ]
-  revision = "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
-  version = "v1.3.0"
-
-[[projects]]
-  name = "github.com/klauspost/cpuid"
-  packages = ["."]
-  revision = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/memcachier/mc"
-  packages = ["."]
-  revision = "7a980f13f9ad192915ff50a47c6beed88e46d79f"
-  version = "v2.0.0"
-
-[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/qiangxue/fasthttp-routing"
-  packages = ["."]
-  revision = "6ccdc2a18d8712f842de50ddcb8c9a3d025ddc71"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/valyala/bytebufferpool"
-  packages = ["."]
-  revision = "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7"
-
-[[projects]]
-  name = "github.com/valyala/fasthttp"
-  packages = [
-    ".",
-    "fasthttputil",
-    "stackless"
-  ]
-  revision = "e5f51c11919d4f66400334047b897ef0a94c6f3c"
-  version = "v20180529"
 
 [[projects]]
   name = "go.opencensus.io"
@@ -203,6 +165,7 @@
   packages = [
     "googleapis/api/annotations",
     "googleapis/cloud/vision/v1",
+    "googleapis/firestore/v1beta1",
     "googleapis/longrunning",
     "googleapis/rpc/status",
     "googleapis/type/color",
@@ -258,6 +221,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6677a374241680efaa5416247967e6610f041749e74dd45003a78bd19746a2a7"
+  inputs-digest = "56463c515df0861a4d3613b1c36c5b3e72e70aec0e9a3aad94b12955dde5c57c"
   solver-name = "gps-cdcl"
   solver-version = 1

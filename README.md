@@ -15,24 +15,16 @@ In order to address this frustration, I built a quick tool that will perform the
 4) Fetch those video pages, scraping for Youtube embed.
 5) Outputting the workout graphic, followed by any found Youtube embeds from steps 3-4.
 
-## Requirements
-
-You will need a Google Cloud account. The application expects the JSON for a valid Service Account to be dropped in the root
-of this directory, with the filename `.gcloud_darebee.json`
-
 ## Running locally
 
 ```
-$ docker-compose up
+$ make test
 ```
 
 ## Deployment
 
 ```
-$ go test
-$ docker build -t darebee .
-$ docker tag darebee gcr.io/darebee-208813/darebee-workout:1.3
-$ docker push gcr.io/darebee-208813/darebee-workout:1.3
+$ make
 ```
 
-Then refresh GCE instance from Google cloud console.
+Then upload the new function.zip to GCF.
